@@ -1,0 +1,2 @@
+extensions(["c","h"]).
+hints([]).
