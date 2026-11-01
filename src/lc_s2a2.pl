@@ -181,9 +181,19 @@ tokens(S, Ts) :- string_codes(S, Cs), phrase(toks(Ts), Cs).
 toks(Ts) --> [C], { code_type(C, space) }, !, toks(Ts).
 toks([str(S)|Ts]) --> [Q], { Q == 0'" ; Q == 0'' }, !, qstr(Q, Cs), { string_codes(S, Cs) }, toks(Ts).
 toks([N|Ts]) --> num(Cs), { Cs \== [] }, !, { number_codes(N, Cs) }, toks(Ts).
-toks([W|Ts]) --> wchars(Cs), { Cs \== [] }, !, { atom_codes(W0, Cs), downcase_atom(W0, W) }, toks(Ts).
+toks([W|Ts]) --> wchars(Cs), { Cs \== [] }, !, { atom_codes(W0, Cs), downcase_atom(W0, W1), stem(W1, W) }, toks(Ts).
 toks(Ts) --> [_], !, toks(Ts).
 toks([]) --> [].
+%	"adds", "squares", "multiplies" ... -> add, square, multiply
+stem(W, S) :- stem_(W, S), !.
+stem(W, W).
+stem_(multiplies, multiply).
+stem_(halves, halve).
+stem_(W, S) :- atom_concat(S, s, W), atom_length(S, L), L >= 3,
+	memberchk(S, [add, square, sum, reverse, sort, double, triple, divide, subtract, negate,
+		      count, join, split, keep, filter, remove, drop, append, prepend, uppercase,
+		      lowercase, total, increment, decrement, select, order, concatenate]).
+
 qstr(Q, []) --> [Q], !.
 qstr(Q, [C|Cs]) --> [C], qstr(Q, Cs).
 num([0'-|Ds]) --> "-", digits(Ds), { Ds \== [] }, !.

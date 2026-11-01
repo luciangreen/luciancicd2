@@ -32,9 +32,12 @@
 :- use_module(lc2src(lc_chatbot)).
 :- use_module(lc2src(lc_web)).
 
+:- dynamic user/1, repositories_paths1/1, omit_paths1/1, output_path1/1,
+   fail_if_greater_than_n_changes1/1, time_limit/1, lc_mode/1.
 :- include('settings.pl').
 :- include('main.pl').
 :- include('tests/luciancicdverify.pl').
+:- include('tests/test_tools.pl').
 
 % language descriptions (learnt, with proofs) and packs
 :- prolog_load_context(directory, D),

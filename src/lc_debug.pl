@@ -318,25 +318,46 @@ feat(has_base_case, _, _, Cls, _, _) :- member(Cl, Cls), Cl \= (_ :- _).
 % ---------------------------------------------------------------- repairs
 
 %	repair(+Prog, +Results, +Test, +Diag, -Prog1, -How)
+%	Repairs are tried at the diagnosed clause first, then in predicates it
+%	calls that have no tests of their own (the oracle could not judge them).
 repair(Prog, Rs, _T, Diag, Prog1, How) :-
 	Diag = diag(Key, _, C, J, _, Fs),
 	repair_classes(Classes),
 	(   repair_mnn(mnn(_, _, _, Net)) -> mnn_rank(Net, Fs, Classes, Ranked) ; Ranked = Classes ),
 	include([_-pass]>>true, Rs, Passing0), pairs_keys(Passing0, Passing),
 	length(Passing, NP),
-	Prog = prog(_, _, KeyCls, _, _),
+	Prog = prog(_, _, KeyCls, Tests, _),
+	untested_callees(KeyCls, Tests, Key, Suspects),
+	findall(L, ( L = Key-C-J ; member(SK, Suspects), L = SK-0-0 ), Locs),
 	(   member(Op, Ranked),
-	    candidate(Op, Prog, KeyCls, Key, C, J, Diag, NewCls, What),
-	    replace_key(Prog, Key, NewCls, ProgC),
+	    member(LK-LC-LJ, Locs),
+	    candidate(Op, Prog, KeyCls, LK, LC, LJ, Diag, NewCls, What),
+	    replace_key(Prog, LK, NewCls, ProgC),
 	    results(ProgC, RsC),
 	    include([_-pass]>>true, RsC, PC0), pairs_keys(PC0, PC),
 	    length(PC, NPC), NPC > NP,
 	    forall(member(T0, Passing), memberchk(T0, PC)),
 	    forall(( member(T1-_, RsC), test_key(T1, Key) ), memberchk(T1-pass, RsC))
 	->  Prog1 = ProgC,
-	    format(string(How), "Repair (~w, MNN ranked ~w first): ~w", [Op, Ranked, What])
+	    ( LK == Key -> Where = "" ; format(string(Where), " in ~q, called by ~q and without tests of its own", [LK, Key]) ),
+	    format(string(How), "Repair (~w~w; MNN ranked ~w first): ~w", [Op, Where, Ranked, What])
 	;   resynthesise(Prog, Key, Prog1, How)
 	).
+
+%	Predicates called (directly or not) by Key that have no tests.
+untested_callees(KeyCls, Tests, Key, Ks) :-
+	findall(K-Cs, ( member(K-Cls, KeyCls),
+			findall(C1, ( member(Cl, Cls), clause_calls(Cl, Cs0), member(C1, Cs0), memberchk(C1-_, KeyCls) ), Cs1),
+			sort(Cs1, Cs) ), Edges),
+	reach([Key], Edges, [Key], R),
+	findall(K, ( member(K, R), K \== Key, \+ ( member(T, Tests), test_key(T, K) ) ), Ks).
+
+reach([], _, R, R).
+reach([K|Ks], Edges, Acc, R) :-
+	( memberchk(K-Cs, Edges) -> true ; Cs = [] ),
+	exclude([C]>>memberchk(C, Acc), Cs, New),
+	append(Acc, New, Acc1), append(Ks, New, Ks1),
+	reach(Ks1, Edges, Acc1, R).
 
 replace_key(prog(PF, Keys, KeyCls, Tests, Dirs), Key, NewCls, prog(PF, Keys, KeyCls1, Tests, Dirs)) :-
 	maplist([K-Cs, K-Cs1]>>( K == Key -> Cs1 = NewCls ; Cs1 = Cs ), KeyCls, KeyCls1).
@@ -419,7 +440,11 @@ base_case(Tests, Key, Fact) :-
 	unground_names(G0, G, Names),
 	intended(G, Names, Bs, GI),
 	ground(GI),
+	G =.. [_|Args], include(nonvar, Args, Ins), Ins \== [],
+	maplist(base_value, Ins),             % a base case, not a copy of any test
 	ground_term(GI, [], Fact).
+
+base_value(X) :- X == [] ; X == 0 ; X == "" ; X == 1 ; atom(X).
 
 resynthesise(Prog, N/A, Prog1, How) :-
 	Prog = prog(_, _, _, Tests, _),
