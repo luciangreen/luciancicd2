@@ -15,6 +15,7 @@
 	    hunk_labels/3,       % +Labelled, -HunkLabelled, -NHunks
 	    candidate_omit/4,    % +N, +Max, +Mode, -OmitSet   (nondet)
 	    apply_omit/3,        % +Labelled, +OmitSet, -Units
+	    apply_omit/4,        % +Labelled, +OmitSet, -Units, -BothKept
 	    ops_counts/3         % +Ops, -Ins, -Del
 	  ]).
 
@@ -107,32 +108,41 @@ comb(K, [X|Xs], [X|C]) :- K1 is K-1, comb(K1, Xs, C).
 comb(K, [_|Xs], C) :- length(Xs, L), L >= K, comb(K, Xs, C).
 
 %!	apply_omit(+Labelled, +Omit, -Units)
+%!	apply_omit(+Labelled, +Omit, -Units, -Both)
 %	Inside a replaced region, deletions and insertions are paired by
-%	position; for each pair the inserted (new) unit comes before the
-%	restored (old) one.  So omitting the deletion of b(1) when b(2)
-%	replaced it gives b(2), b(1) (luciancicd test 23), and keeping the
-%	old A=1 but the new B=2 gives A=1,B=2 (test 9).
-apply_omit([], _, []) :- !.
-apply_omit([c(_, keep(X))|T], Omit, [X|Us]) :- !, apply_omit(T, Omit, Us).
-apply_omit(L, Omit, Us) :-
+%	position.  If a pair keeps both the old and the new unit (Both counts
+%	these), the new one comes first and then, on backtracking, second.
+%	Callers try candidates with Both = 0 first: omitting the deletion of
+%	b(1) when b(2) replaced it gives b(2), b(1) only if nothing simpler
+%	passes (luciancicd test 23), and keeping the old A=1 but the new B=2
+%	gives A=1,B=2 (test 9).
+apply_omit(L, Omit, Us) :- apply_omit(L, Omit, Us, _).
+
+apply_omit([], _, [], 0) :- !.
+apply_omit([c(_, keep(X))|T], Omit, [X|Us], B) :- !, apply_omit(T, Omit, Us, B).
+apply_omit(L, Omit, Us, B) :-
 	region(L, Region, Rest),
 	include([c(_,Op)]>>(Op = del(_)), Region, Ds),
 	include([c(_,Op)]>>(Op = ins(_)), Region, Is),
-	pair_up(Ds, Is, Omit, RUs),
+	pair_up(Ds, Is, Omit, RUs, B1),
 	append(RUs, Us1, Us),
-	apply_omit(Rest, Omit, Us1).
+	apply_omit(Rest, Omit, Us1, B2),
+	B is B1+B2.
 
 region([C|T], [C|R], Rest) :- C = c(_, Op), Op \= keep(_), !, region(T, R, Rest).
 region(L, [], L).
 
-pair_up([], [], _, []) :- !.
-pair_up(Ds, Is, Omit, Us) :-
+pair_up([], [], _, [], 0) :- !.
+pair_up(Ds, Is, Omit, Us, B) :-
 	( Ds = [D|Ds1] -> true ; D = none, Ds1 = [] ),
 	( Is = [I|Is1] -> true ; I = none, Is1 = [] ),
 	( I = c(II, ins(X)), \+ omitted(II, Omit) -> U1 = [X] ; U1 = [] ),
 	( D = c(DI, del(Y)), omitted(DI, Omit) -> U2 = [Y] ; U2 = [] ),
-	append(U1, U2, U12),
-	pair_up(Ds1, Is1, Omit, Us1),
+	(   U1 == [] -> U12 = U2, B0 = 0 ; U2 == [] -> U12 = U1, B0 = 0
+	;   B0 = 1, ( append(U1, U2, U12) ; append(U2, U1, U12) )
+	),
+	pair_up(Ds1, Is1, Omit, Us1, B3),
+	B is B0+B3,
 	append(U12, Us1, Us).
 
 omitted(Id, Omit) :- Id \== none, memberchk(Id, Omit).

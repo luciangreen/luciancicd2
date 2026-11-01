@@ -104,8 +104,10 @@ pack_ci(Pack, Path, Old, New, Max, Mode, Cwd, Text) :-
 	(   N0 =< Max -> L = L0, N = N0 ; hunk_labels(L0, L, N) ),
 	pack_tests(Pack, New, Tests),
 	Ctx = ctx(Path, Cwd),
+	member(Phase, [simple, both]),
 	candidate_omit(N, Max, Mode, Omit),
-	apply_omit(L, Omit, Lines),
+	apply_omit(L, Omit, Lines, Both),
+	( Phase == simple -> Both =:= 0 ; Both > 0 ),
 	atomic_list_concat(Lines, '\n', A), atom_string(A, Text),
 	(   Tests == []
 	->  pack_valid(Pack, Text, _)

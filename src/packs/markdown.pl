@@ -13,7 +13,8 @@ md_test("valid", Text, R) :- !,
 	->  R = pass ; R = fail(not_well_formed)
 	).
 md_test(T, Text, R) :- string_concat("heading ", X, T), !,
-	split_string(Text, "\n", "", Ls),
+	split_string(Text, "\n", "", Ls0),
+	outside_fences(Ls0, out, Ls),
 	(   member(L, Ls), string_concat("#", _, L),
 	    split_string(L, "#", " ", Parts), last(Parts, H), H == X
 	->  R = pass ; R = fail(no_heading(X))
@@ -30,3 +31,13 @@ md_fences_balanced(Text) :-
 	split_string(Text, "\n", "", Ls),
 	aggregate_all(count, ( member(L, Ls), normalize_space(string(N), L), string_concat("```", _, N) ), K),
 	K mod 2 =:= 0.
+
+%	Lines that are not inside ``` code fences.
+outside_fences([], _, []).
+outside_fences([L|Ls], S, Out) :-
+	normalize_space(string(N), L),
+	(   string_concat("```", _, N)
+	->  ( S == out -> S1 = in ; S1 = out ), Out = Out1
+	;   S1 = S, ( S == out -> Out = [L|Out1] ; Out = Out1 )
+	),
+	outside_fences(Ls, S1, Out1).

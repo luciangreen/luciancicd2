@@ -295,3 +295,71 @@ lc_test0(30,true,7,i,
 ["c/main_file.txt","[[\"c.pl\",[[vfs_round_trip,1]]]]"]]
 ).
 
+
+% ---------------------------------------------------------------------------
+% Language pack tests.  Tests are in comments after "test:".  Comment lines
+% always come from the new version; other lines are combined as for Prolog.
+
+% C: "// test: ARGS => STDOUT", compiled with gcc.
+lc_test0(31,true,7,i,
+[["cc/sum.c","// test: 2 3 => 5\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char **argv) {\n  printf(\"%d\\n\", atoi(argv[1]) + atoi(argv[2]));\n  return 0;\n}"],
+["cc/main_file.txt","[]"]],
+[["cc/sum.c","// test: 2 3 => 5\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char **argv) {\n  printf(\"%d\\n\", atoi(argv[1]) + atoi(argv[2]));\n  return 0;\n}"],
+["cc/main_file.txt","[]"]]
+).
+
+% C, CD: the new version multiplies; the tests need the old sum.
+lc_test0(32,false,7,d,
+[["cc/sum.c","// test: 2 3 => 5\n// test: 10 5 => 15\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char **argv) {\n  printf(\"%d\\n\", atoi(argv[1]) * atoi(argv[2]));\n  return 0;\n}"],
+["cc/main_file.txt","[]"]],
+[["cc/sum.c","// test: 2 3 => 5\n// test: 10 5 => 15\n#include <stdio.h>\n#include <stdlib.h>\nint main(int argc, char **argv) {\n  printf(\"%d\\n\", atoi(argv[1]) + atoi(argv[2]));\n  return 0;\n}"],
+["cc/main_file.txt","[]"]]
+).
+
+% JavaScript: "// test: EXPRESSION => VALUE", run with node.
+lc_test0(33,true,7,i,
+[["js/add.js","// test: add(2,3) => 5\n// test: double([1,2]) => [2,4]\nfunction add(a, b) {\n  return a + b;\n}\nconst double = xs => xs.map(x => x * 2);"],
+["js/main_file.txt","[]"]],
+[["js/add.js","// test: add(2,3) => 5\n// test: double([1,2]) => [2,4]\nfunction add(a, b) {\n  return a + b;\n}\nconst double = xs => xs.map(x => x * 2);"],
+["js/main_file.txt","[]"]]
+).
+
+% JavaScript, CD: of two changed lines, only the one the tests allow is kept.
+lc_test0(34,false,7,d,
+[["js/add.js","// test: add(2,3) => 5\n// test: double([1,2]) => [2,4]\n// test: add(1,1) => 2\nfunction add(a, b) {\n  return a - b;\n}\nconst double = xs => xs.map(x => x + x);"],
+["js/main_file.txt","[]"]],
+[["js/add.js","// test: add(2,3) => 5\n// test: double([1,2]) => [2,4]\n// test: add(1,1) => 2\nfunction add(a, b) {\n  return a + b;\n}\nconst double = xs => xs.map(x => x + x);"],
+["js/main_file.txt","[]"]]
+).
+
+% HTML: "valid" is a proof that the tags balance.
+lc_test0(35,true,7,i,
+[["web/index.html","<html>\n<body>\n<!-- test: valid -->\n<!-- test: contains <h1>Hello</h1> -->\n<h1>Hello</h1>\n<ul>\n<li>a</li>\n</ul>\n</body>\n</html>"],
+["web/main_file.txt","[]"]],
+[["web/index.html","<html>\n<body>\n<!-- test: valid -->\n<!-- test: contains <h1>Hello</h1> -->\n<h1>Hello</h1>\n<ul>\n<li>a</li>\n</ul>\n</body>\n</html>"],
+["web/main_file.txt","[]"]]
+).
+
+% HTML, CD: the new heading is kept, the lost </ul> is put back.
+lc_test0(36,false,7,d,
+[["web/index.html","<html>\n<body>\n<!-- test: valid -->\n<!-- test: contains <h1>Hello there</h1> -->\n<h1>Hello there</h1>\n<ul>\n<li>a</li>\n</body>\n</html>"],
+["web/main_file.txt","[]"]],
+[["web/index.html","<html>\n<body>\n<!-- test: valid -->\n<!-- test: contains <h1>Hello there</h1> -->\n<h1>Hello there</h1>\n<ul>\n<li>a</li>\n</ul>\n</body>\n</html>"],
+["web/main_file.txt","[]"]]
+).
+
+% Markdown.
+lc_test0(37,true,7,i,
+[["md/README.md","# Lucian CI/CD\n<!-- test: valid -->\n<!-- test: heading Lucian CI/CD -->\n\n```\nswipl luciancicd.pl\n```"],
+["md/main_file.txt","[]"]],
+[["md/README.md","# Lucian CI/CD\n<!-- test: valid -->\n<!-- test: heading Lucian CI/CD -->\n\n```\nswipl luciancicd.pl\n```"],
+["md/main_file.txt","[]"]]
+).
+
+% Markdown, CD: a new section is kept and the dropped closing fence restored.
+lc_test0(38,false,7,d,
+[["md/README.md","# Lucian CI/CD\n<!-- test: valid -->\n<!-- test: heading Lucian CI/CD -->\n<!-- test: heading Tests -->\n\n```\nswipl luciancicd.pl\n## Tests\nlc_test(N,S)."],
+["md/main_file.txt","[]"]],
+[["md/README.md","# Lucian CI/CD\n<!-- test: valid -->\n<!-- test: heading Lucian CI/CD -->\n<!-- test: heading Tests -->\n\n```\nswipl luciancicd.pl\n```\n## Tests\nlc_test(N,S)."],
+["md/main_file.txt","[]"]]
+).

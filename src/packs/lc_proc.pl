@@ -16,7 +16,7 @@ tool_available(Exe) :-
 %!	run_tool(+Exe, +Args, +Seconds, -Exit, -Output)
 %	Exe is a tool on the PATH (atom) or a file path (string).
 run_tool(Exe, Args, Secs, Exit, Out) :-
-	(   atom(Exe) -> Prog = path(Exe) ; Prog = file(Exe) ),
+	(   atom(Exe), \+ sub_atom(Exe, _, _, _, '/') -> Prog = path(Exe) ; atom_string(Prog, Exe) ),
 	process_create(Prog, Args, [stdout(pipe(O)), stderr(pipe(E)), stdin(null), process(Pid)]),
 	(   catch(call_with_time_limit(Secs,
 		  ( read_string(O, _, Out0), read_string(E, _, Err0) )), time_limit_exceeded,

@@ -245,9 +245,11 @@ decide_groups([G|Gs], Model, Max, Mode, Ch0, Ch) :-
 	),
 	length(GT, NGT),
 	lc_message("Group ~w: ~w changes, ~w tests."-[G, NC, NGT]),
+	member(Phase, [simple, both]),
 	candidate_omit(NC, Max1, Mode, Omit),
+	foldl([K-KL, K-Us, B0, B1]>>( apply_omit(KL, Omit, Us, B), B1 is B0+B ), L, Cand, 0, Both),
+	( Phase == simple -> Both =:= 0 ; Both > 0 ),
 	spend,
-	maplist([K-KL, K-Us]>>apply_omit(KL, Omit, Us), L, Cand),
 	maplist([K-Us, K-Cls]>>units_clauses(Us, Cls), Cand, CandCls),
 	append(CandCls, Ch0, Ch1),
 	(   GT == []

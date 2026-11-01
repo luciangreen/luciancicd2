@@ -49,7 +49,7 @@ tokens(D, Text, Tokens) :-
 	feature(D, void_tags(Void), []),
 	feature(D, raw_tags(Raw), []),
 	maplist(string_codes, LC, LCc),
-	maplist([[O,C],[Oc,Cc]]>>(string_codes(O,Oc), string_codes(C,Cc)), BC, BCc),
+	maplist([[O,C],Oc-Cc]>>(string_codes(O,Oc), string_codes(C,Cc)), BC, BCc),
 	maplist(string_codes, SD, SDc),
 	maplist([[O,C],O1-C1]>>(string_codes(O,[O1]), string_codes(C,[C1])), BR, BRc),
 	Cfg = cfg(LCc, BCc, SDc, BRc, Tags, Void, Raw),
@@ -89,9 +89,9 @@ word_codes([C|Cs]) --> [C], { code_type(C, csym) }, !, word_codes(Cs).
 word_codes([]) --> [].
 
 % tags: <name ...>, </name>, <name .../>, <!DOCTYPE ...>
-tag(_, _, [leaf], _) --> "!", !, upto(">").
-tag(_, _, [leaf], _) --> "?", !, upto("?>").
-tag(_, _, [tag_close(N)], _) --> "/", tag_name(N), !, upto(">").
+tag(_, _, [leaf], _) --> "!", !, upto(`>`).
+tag(_, _, [leaf], _) --> "?", !, upto(`?>`).
+tag(_, _, [tag_close(N)], _) --> "/", tag_name(N), !, upto(`>`).
 tag(Void, Raw, Ts, _) -->
 	tag_name(N), !, tag_rest(SelfClose),
 	(   { SelfClose == true ; memberchk(N, Void) }
@@ -247,15 +247,25 @@ terminator(Lines, LC, T) :-
 	;   T = none
 	).
 
+%	Keywords: lower-case words of 2+ letters, frequent across samples.
 keywords(Samples, Kws) :-
-	findall(W, ( member(S, Samples), split_string(S, "\n", "", Ls), member(L, Ls),
-		     split_string(L, " \t(){}<>;,.#=", " \t", Ws), member(W0, Ws), W0 \== "",
-		     string_codes(W0, [C|_]), code_type(C, alpha), string_lower(W0, W) ), All),
-	msort(All, Sorted), clumped_pairs(Sorted, Counts),
-	include([_-N]>>(N >= 3), Counts, Freq),
+	length(Samples, NS),
+	findall(W-I, ( nth1(I, Samples, S), string_codes(S, Cs), phrase(words(Ws), Cs),
+		       member(W, Ws) ), WIs),
+	findall(W, member(W-_, WIs), All), msort(All, Sorted), clumped(Sorted, Counts),
+	include([W-N]>>( N >= 3,
+			 aggregate_all(count, distinct(I, member(W-I, WIs)), DF),
+			 ( NS >= 2 -> DF >= 2 ; true ) ), Counts, Freq),
 	transpose_pairs(Freq, ByCount0), keysort(ByCount0, BC1), reverse(BC1, BC),
 	pairs_values(BC, Ws1),
 	( length(Kws, 15), append(Kws, _, Ws1) -> true ; Kws = Ws1 ).
+
+words(Ws) --> [C], { code_type(C, lower) }, !, word_codes(Cs),
+	{ atom_codes(A, [C|Cs]), atom_string(A, W) },
+	( { Cs == [] } -> { Ws = Ws1 } ; { Ws = [W|Ws1] } ), words(Ws1).
+words(Ws) --> [C], { code_type(C, csym) }, !, word_codes(_), words(Ws).
+words(Ws) --> [_], !, words(Ws).
+words([]) --> [].
 
 clumped_pairs(L, Ps) :- clumped(L, Ps).
 
