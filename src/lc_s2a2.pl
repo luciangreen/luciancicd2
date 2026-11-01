@@ -63,6 +63,8 @@ s2a2_instruction(reverse,         list-list, "reverse a list",            "rever
 s2a2_instruction(sort,            list-list, "sort, keeping duplicates",  "sort").
 s2a2_instruction(unique,          list-list, "sort and remove duplicates","remove duplicates").
 s2a2_instruction(tail,            list-list, "drop the first item",       "remove the first").
+s2a2_instruction(group_consecutive, list-list, "group runs of consecutive numbers", "group consecutive numbers").
+s2a2_instruction(group_equal,     list-list, "group runs of equal items",  "group equal items").
 s2a2_instruction(map(i),          list-list, "do an instruction to each item", "square each, add 1 to each").
 s2a2_instruction(filter(c),       list-list, "keep items: gt(N), lt(N), even, odd", "keep numbers greater than 2").
 s2a2_instruction(upper,           str-str,   "upper case",                "uppercase").
@@ -117,6 +119,8 @@ run(sort, X, Y) :- is_list(X), msort(X, Y).
 run(unique, X, Y) :- is_list(X), sort(X, Y).
 run(tail, [_|Y], Y).
 run(map(I), X, Y) :- is_list(X), maplist(run(I), X, Y).
+run(group_consecutive, X, Y) :- is_list(X), maplist(integer, X), runs(X, [A,B]>>(B =:= A+1), Y).
+run(group_equal, X, Y) :- is_list(X), runs(X, [A,B]>>(A == B), Y).
 run(filter(C), X, Y) :- is_list(X), include(cond(C), X, Y).
 run(upper, X, Y) :- string(X), string_upper(X, Y).
 run(lower, X, Y) :- string(X), string_lower(X, Y).
@@ -137,6 +141,12 @@ run2(max2, A, B, Y) :- number(A), number(B), Y is max(A,B).
 run2(min2, A, B, Y) :- number(A), number(B), Y is min(A,B).
 run2(append2, A, B, Y) :- is_list(A), is_list(B), append(A, B, Y).
 run2(concat2, A, B, Y) :- string(A), string(B), string_concat(A, B, Y).
+
+%	runs(+List, +Next, -Groups): split List where Next(Prev, Item) fails.
+runs([], _, []).
+runs([A|B], Next, [[A|R]|Gs]) :- run_from(A, B, Next, R, Rest), runs(Rest, Next, Gs).
+run_from(A, [B|C], Next, [B|R], Rest) :- call(Next, A, B), !, run_from(B, C, Next, R, Rest).
+run_from(_, L, _, [], L).
 
 cond(gt(K), X) :- number(X), X > K.
 cond(lt(K), X) :- number(X), X < K.
@@ -192,7 +202,7 @@ stem_(halves, halve).
 stem_(W, S) :- atom_concat(S, s, W), atom_length(S, L), L >= 3,
 	memberchk(S, [add, square, sum, reverse, sort, double, triple, divide, subtract, negate,
 		      count, join, split, keep, filter, remove, drop, append, prepend, uppercase,
-		      lowercase, total, increment, decrement, select, order, concatenate]).
+		      lowercase, total, increment, decrement, select, order, concatenate, group]).
 
 qstr(Q, []) --> [Q], !.
 qstr(Q, [C|Cs]) --> [C], qstr(Q, Cs).
@@ -236,6 +246,8 @@ instr1(first) --> ( [first] ; [head] ).
 instr1(last) --> [last].
 instr1(reverse_string) --> [reverse], skip, [string].
 instr1(reverse) --> ( [reverse] ; [backwards] ).
+instr1(group_consecutive) --> [group], skip, ( [consecutive] ; [runs] ; [sequences] ; [sequential] ).
+instr1(group_equal) --> [group], skip, ( [equal] ; [same] ; [identical] ; [repeated] ).
 instr1(unique) --> ( [remove], skip, [duplicates] ; [unique] ; [deduplicate] ).
 instr1(sort) --> ( [sort] ; [order] ).
 instr1(filter(gt(N))) --> keep, skip, gtw, skip, [N], { number(N) }.
@@ -463,7 +475,7 @@ s2a2_train :-
 corpus_example(Classes, Specs, Y) :-
 	member(T, [add(3), subtract(2), multiply(2), divide(2), mod(3), square, negate, absolute,
 		   sum, product, length, maximum, minimum, first, last, reverse, sort, unique, tail,
-		   map(add(1)), map(square), map(multiply(3)), filter(gt(2)), filter(even),
+		   group_consecutive, group_equal, map(add(1)), map(square), map(multiply(3)), filter(gt(2)), filter(even),
 		   upper, lower, reverse_string, append_text("!"), prepend_text("Hi "), string_length,
 		   to_number, split(","), chars, join("-"), to_string]),
 	between(1, 6, _),
@@ -560,6 +572,11 @@ instr_code(Name, filter(Cn), X, Y, N, N, [P], Hs, H0) :-
 	cond_goal(Cn, A, CG),
 	H1 =.. [PN, [], []], H2h =.. [PN, [A|B], C], H2r =.. [PN, B, D],
 	Hs = [H1, (H2h :- ( CG -> C = [A|D] ; C = D ), H2r)].
+%	group(L, Groups):  group([A|B],[[A|C]|D]) :- group_run(A,B,C,E), group(E,D).
+instr_code(Name, group_consecutive, X, Y, N, N, [P], Hs, H0) :-
+	group_code(Name, H0, X, Y, P, Hs, consecutive).
+instr_code(Name, group_equal, X, Y, N, N, [P], Hs, H0) :-
+	group_code(Name, H0, X, Y, P, Hs, equal).
 instr_code(_, upper, X, Y, N, N, [string_upper(X, Y)], [], _).
 instr_code(_, lower, X, Y, N, N, [string_lower(X, Y)], [], _).
 instr_code(_, reverse_string, X, Y, N0, N, [string_chars(X, C1), reverse(C1, C2), string_chars(Y, C2)], [], _) :-
@@ -583,6 +600,17 @@ tidy_vars(C0, C) :-
 rename('$VAR'(N), Map, '$VAR'(V)) :- atom(N), memberchk(N-V, Map), !.
 rename(T, _, T) :- \+ compound(T), !.
 rename(T, Map, T1) :- T =.. [F|As], maplist([A, B]>>rename(A, Map, B), As, Bs), T1 =.. [F|Bs].
+
+group_code(Name, H0, X, Y, P, Hs, Kind) :-
+	helper_name(Name, group, H0, PN), P =.. [PN, X, Y],
+	atom_concat(PN, '_run', RN),
+	A = '$VAR'('A'), B = '$VAR'('B'), C = '$VAR'('C'), D = '$VAR'('D'), E = '$VAR'('E'),
+	( Kind == consecutive -> Test = (B =:= A+1) ; Test = (B == A) ),
+	G1 =.. [PN, [], []],
+	G2h =.. [PN, [A|B], [[A|C]|D]], G2a =.. [RN, A, B, C, E], G2b =.. [PN, E, D],
+	R1h =.. [RN, A, [B|C], [B|D], E], R1r =.. [RN, B, C, D, E],
+	R2 =.. [RN, '$VAR'('_'), A, [], A],
+	Hs = [G1, (G2h :- G2a, G2b), (R1h :- Test, !, R1r), R2].
 
 cond_goal(gt(K), A, A > K).
 cond_goal(lt(K), A, A < K).

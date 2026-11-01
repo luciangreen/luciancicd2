@@ -11,7 +11,7 @@ A complete rewrite of [Lucian CI/CD](https://github.com/luciangreen/luciancicd) 
 ```
 swipl luciancicd.pl
 ?- lc_test(N, S).          % 38 CI/CD test cases (1-23 from luciancicd)
-?- lc_tool_tests(N, S).    % 18 tests of the new tools
+?- lc_tool_tests(N, S).    % 20 tests of the new tools
 ?- help.
 ?- luciancicd_server(8000).   % http://localhost:8000/
 ```
@@ -91,6 +91,15 @@ g_map1([A|B],[C|D]):-C is A*2,g_map1(B,D).
 
 ?- s2a2(shout, [[["hi"],"HI!"], [["yo"],"YO!"]], C).      % finds the instructions itself
 shout(A,B):-string_upper(A,C),string_concat(C,"!",B).
+```
+
+From the chatbot: `make group_consecutive that groups consecutive numbers, e.g. [1,2,3,5,6,8] -> [[1,2,3],[5,6],[8]]; [4] -> [[4]]`
+```prolog
+group_consecutive(A,B):-group_consecutive_group(A,B).
+group_consecutive_group([],[]).
+group_consecutive_group([A|B],[[A|C]|D]):-group_consecutive_group_run(A,B,C,E),group_consecutive_group(E,D).
+group_consecutive_group_run(A,[B|C],[B|D],E):-B=:=A+1,!,group_consecutive_group_run(B,C,D,E).
+group_consecutive_group_run(_,A,[],A).
 ```
 
 * Without instructions, it searches pipelines of up to three instructions. Constants are taken from the examples, and an MNN ranks which instruction to try first.
