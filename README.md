@@ -11,7 +11,7 @@ A complete rewrite of [Lucian CI/CD](https://github.com/luciangreen/luciancicd) 
 ```
 swipl luciancicd.pl
 ?- lc_test(N, S).          % 38 CI/CD test cases (1-23 from luciancicd)
-?- lc_tool_tests(N, S).    % 18 tests of the new tools
+?- lc_tool_tests(N, S).    % 22 tests of the new tools
 ?- help.
 ?- luciancicd_server(8000).   % http://localhost:8000/
 ```

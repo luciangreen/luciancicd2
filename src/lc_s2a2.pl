@@ -157,12 +157,35 @@ parse_instructions(Text0, Steps) :-
 	maplist(step_alternatives, Parts, Steps0),
 	exclude(==([]), Steps0, Steps).
 
+%	Separators inside "quoted text" (e.g. prepend "Hello, ") don't split.
 split_steps(L, Parts) :-
-	foldl([Sep, A0, A]>>( atomic_list_concat(Ps, Sep, A0), atomic_list_concat(Ps, '|', A) ),
-	      [' and then ', ', then ', ' then ', ';', '. ', ', and ', ','], L, A1),
-	atomic_list_concat(Ps1, '|', A1),
+	string_codes(L, Cs),
+	quote_segments(Cs, Segs),
+	maplist(split_segment, Segs, Marked),
+	atomic_list_concat(Marked, '', A1),
+	atomic_list_concat(Ps1, '\u0001', A1),
 	maplist([P, S]>>( atom_string(P, S0), normalize_space(string(S), S0) ), Ps1, Ps2),
 	exclude(==(""), Ps2, Parts).
+
+quote_segments([], []).
+quote_segments([Q|Cs], [q([Q|Qs])|Segs]) :-
+	( Q == 0'" ; Q == 0'' ), !,
+	quoted(Q, Cs, Qs, Rest), quote_segments(Rest, Segs).
+quote_segments(Cs, [u(U)|Segs]) :-
+	unquoted(Cs, U, Rest), U \== [], quote_segments(Rest, Segs).
+
+quoted(Q, [Q|Rest], [Q], Rest) :- !.
+quoted(Q, [C|Cs], [C|Qs], Rest) :- !, quoted(Q, Cs, Qs, Rest).
+quoted(_, [], [], []).
+
+unquoted([C|Cs], [C|U], Rest) :- C \== 0'", C \== 0'', !, unquoted(Cs, U, Rest).
+unquoted(Rest, [], Rest).
+
+split_segment(q(Cs), A) :- atom_codes(A, Cs).
+split_segment(u(Cs), A) :-
+	atom_codes(A0, Cs),
+	foldl([Sep, X0, X]>>( atomic_list_concat(Xs, Sep, X0), atomic_list_concat(Xs, '\u0001', X) ),
+	      [' and then ', ', then ', ' then ', ';', '. ', ', and ', ','], A0, A).
 
 step_alternatives(S, Alts) :-
 	tokens(S, Ts),
@@ -203,8 +226,9 @@ digits([]) --> [].
 wchars([C|Cs]) --> [C], { code_type(C, alpha) }, !, wchars(Cs).
 wchars([]) --> [].
 
-skip --> [W], { filler(W) }, !, skip.
+%	Not greedy: "reverse the string" needs "string" after skipping "the".
 skip --> [].
+skip --> [W], { filler(W) }, skip.
 filler(W) :- memberchk(W, [the, a, an, each, every, all, of, it, list, number, numbers,
 			    item, items, element, elements, to, by, from, and, then, value, values,
 			    string, text, in, its, with, on, into, at]).
@@ -254,6 +278,10 @@ instr1(chars) --> ( [characters] ; [chars] ; [letters] ).
 instr1(join(S)) --> [join], skip, [str(S)].
 instr1(join("")) --> [join].
 instr1(plus) --> [plus] ; [add], skip, [together].
+instr1(times) --> [times].
+instr1(minus) --> [minus].
+instr1(max2) --> [larger] ; [bigger] ; [greater].
+instr1(min2) --> [smaller] ; [lesser].
 instr1(times) --> [multiply], skip, [together].
 instr1(append2) --> [append], skip, [lists].
 instr1(concat2) --> [concatenate] ; [join], skip, [strings].

@@ -54,3 +54,12 @@ tool_test(17, chatbot_help,
 	( lc_chat("help vfs", reply(T, _)), sub_string(T, _, _, _, "read_file_s") )).
 tool_test(18, mnn_rules_readable,
 	( mnn_rules(s2a2, R), sub_string(R, _, _, _, "prefers(") )).
+tool_test(19, instructions_string_word,
+	( s2a2_instructions(r, "reverse the string", [[["abc"],"cba"]], C), sub_string(C, _, _, _, "reverse(") )).
+tool_test(20, instructions_comma_in_quotes,
+	( s2a2_instructions(g, "prepend \"Hello, \"", [[["Lucian"],"Hello, Lucian"]], C), sub_string(C, _, _, _, "\"Hello, \"") )).
+tool_test(21, instructions_one_word_binary,
+	( s2a2_instructions(t, "times", [[[2,3],6]], C1), sub_string(C1, _, _, _, "A*B"),
+	  s2a2_instructions(b, "larger", [[[2,9],9]], C2), sub_string(C2, _, _, _, "max(") )).
+tool_test(22, instructions_minus_number_still_subtracts,
+	( s2a2_instructions(m, "minus 3", [[[10],7]], C), sub_string(C, _, _, _, "A-3") )).
