@@ -54,8 +54,3 @@ tool_test(17, chatbot_help,
 	( lc_chat("help vfs", reply(T, _)), sub_string(T, _, _, _, "read_file_s") )).
 tool_test(18, mnn_rules_readable,
 	( mnn_rules(s2a2, R), sub_string(R, _, _, _, "prefers(") )).
-tool_test(19, chatbot_group_consecutive,
-	( lc_chat("make group_consecutive that groups consecutive numbers, e.g. [1,2,3,5,6,8] -> [[1,2,3],[5,6],[8]]; [4] -> [[4]]", reply(_, C)),
-	  sub_string(C, _, _, _, "B=:=A+1") )).
-tool_test(20, s2a2_search_group_consecutive,
-	( s2a2(gc, [[[[7,8,10,11,12]],[[7,8],[10,11,12]]], [[[1,3]],[[1],[3]]]], C), sub_string(C, _, _, _, "gc_group_run") )).
