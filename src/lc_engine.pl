@@ -21,7 +21,8 @@
 	    lc_record/2,           % +ReposDir, +StoreDir : save without testing
 	    lc_message/1,
 	    lc_messages/1,
-	    lc_clear_messages/0
+	    lc_clear_messages/0,
+	    rebuild/5              % +Path, +NewPlFile, +OldPlFile, +Chosen, -Text
 	  ]).
 
 :- use_module(library(lists)).

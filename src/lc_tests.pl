@@ -16,6 +16,7 @@
 	  [ comment_tests/3,      % +Items, +DefinedKeys, -Tests
 	    test_key/2,
 	    with_program/4,       % +Clauses, +Directives, +Cwd, :Goal(M)
+	    with_program_text/3,  % +Text, +Cwd, :Goal(M)   (compiled, directives such as table run)
 	    run_test/3,           % +Module, +Test, -Result (pass|fail(Why))
 	    run_tests/4,          % +Module, +Tests, -Passed, -Failed
 	    test_text/2,          % +Test, -Text
@@ -29,7 +30,7 @@
 :- use_module(lc_vfs).
 :- use_module(lc_sandbox_api).
 
-:- meta_predicate with_program(+, +, +, 1).
+:- meta_predicate with_program(+, +, +, 1), with_program_text(+, +, 1).
 
 lc_time_limit(T) :-
 	(   catch(user:time_limit(T0), _, fail), number(T0) -> T = T0 ; T = 1 ).
@@ -120,6 +121,19 @@ run_in(M, Cwd, Goal) :-
 	vfs_scratch_clear,
 	call_cleanup(call(Goal, M),
 		     ( vfs_scratch_clear, nb_setval(lc_sandbox_cwd, []) )).
+
+%!	with_program_text(+Text, +Cwd, :Goal)
+%	Like with_program/4 but compiles Text with load_files/2.
+with_program_text(Text, Cwd, Goal) :-
+	in_temporary_module(M,
+			    setup_text(M, Text),
+			    run_in(M, Cwd, Goal)).
+
+setup_text(M, Text) :-
+	add_import_module(M, lc_sandbox_api, start),
+	setup_call_cleanup(open_string(Text, S),
+			   load_files(M:lc_program, [stream(S), silent(true), module(M)]),
+			   close(S)).
 
 setup_program(M, Clauses, Directives) :-
 	add_import_module(M, lc_sandbox_api, start),
