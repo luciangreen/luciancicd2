@@ -38,6 +38,7 @@
 :- include('main.pl').
 :- include('tests/luciancicdverify.pl').
 :- include('tests/test_tools.pl').
+:- include('tests/s2a2_benchmark.pl').
 
 % language descriptions (learnt, with proofs) and packs
 :- prolog_load_context(directory, D),

@@ -95,6 +95,7 @@ shout(A,B):-string_upper(A,C),string_concat(C,"!",B).
 
 * Without instructions, it searches pipelines of up to three instructions. Constants are taken from the examples, and an MNN ranks which instruction to try first.
 * `s2a2_complete(Text, New, Report)` writes every predicate that has tests but no clauses.
+* `tests/s2a2_benchmark.pl` has 200 input/output pairs (50 tasks × 4) with English instructions; `s2a2_benchmark.` scores S2A2 both from the examples and from the instructions.
 
 ## Automatic debugging with proofs and MNNs
 
